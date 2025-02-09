@@ -45,9 +45,9 @@ export default function TabLayout() {
         }}
       >
         <Tabs.Screen
-          name="DialPad"
+          name="dialpad"
           options={{
-            title: "Dialpaded",
+            title: "Dialpad",
             tabBarIcon: ({ color, focused }) => (
               <Ionicons
                 name={focused ? "keypad" : "keypad-outline"}

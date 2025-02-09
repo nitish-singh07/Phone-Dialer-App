@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   Platform,
   TextInput,
+  Modal,
+  Animated,
 } from "react-native";
 import * as Contacts from "expo-contacts";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,6 +30,8 @@ export default function ContactsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
   const colors = getColors(isDarkMode);
@@ -102,6 +106,53 @@ export default function ContactsScreen() {
     );
   };
 
+  const handleContactPress = (contact: Contact) => {
+    setSelectedContact(contact);
+    setIsModalVisible(true);
+  };
+
+  const handleCall = () => {
+    if (selectedContact?.phoneNumbers?.[0]?.number) {
+      // Handle call action
+      setIsModalVisible(false);
+    }
+  };
+
+  const handleScroll = () => {
+    if (isModalVisible) {
+      setIsModalVisible(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (selectedContact) {
+      Alert.alert(
+        "Delete Contact",
+        `Are you sure you want to delete ${selectedContact.name}?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                // Add your delete contact logic here
+                setIsModalVisible(false);
+                Alert.alert("Success", "Contact deleted successfully");
+              } catch (error) {
+                console.error("Error deleting contact:", error);
+                Alert.alert("Error", "Failed to delete contact");
+              }
+            },
+          },
+        ]
+      );
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -151,34 +202,39 @@ export default function ContactsScreen() {
       <FlatList
         data={filteredContacts}
         keyExtractor={(item) => item.id}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         renderItem={({ item }) => (
-          <View
-            style={[styles.contactItem, { backgroundColor: colors.surface }]}
-          >
-            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.avatarText, { color: colors.white }]}>
-                {item.name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <View style={styles.contactInfo}>
-              <Text style={[styles.contactName, { color: colors.textPrimary }]}>
-                {item.name}
-              </Text>
-              {item.phoneNumbers && item.phoneNumbers[0] && (
-                <Text
-                  style={[styles.phoneNumber, { color: colors.textSecondary }]}
-                >
-                  {item.phoneNumbers[0].number}
-                </Text>
-              )}
-            </View>
-            <TouchableOpacity
-              style={styles.blockButton}
-              onPress={() => handleBlock(item)}
+          <TouchableOpacity onPress={() => handleContactPress(item)}>
+            <View
+              style={[styles.contactItem, { backgroundColor: colors.surface }]}
             >
-              <Ionicons name="ban-outline" size={24} color={colors.error} />
-            </TouchableOpacity>
-          </View>
+              <View
+                style={[styles.avatar, { backgroundColor: colors.primary }]}
+              >
+                <Text style={[styles.avatarText, { color: colors.white }]}>
+                  {item.name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.contactInfo}>
+                <Text
+                  style={[styles.contactName, { color: colors.textPrimary }]}
+                >
+                  {item.name}
+                </Text>
+                {item.phoneNumbers && item.phoneNumbers[0] && (
+                  <Text
+                    style={[
+                      styles.phoneNumber,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {item.phoneNumbers[0].number}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
         )}
         ItemSeparatorComponent={() => (
           <View
@@ -186,6 +242,69 @@ export default function ContactsScreen() {
           />
         )}
       />
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setIsModalVisible(false)}
+        >
+          <View
+            style={[styles.modalContent, { backgroundColor: colors.surface }]}
+            onStartShouldSetResponder={() => true}
+          >
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+              {selectedContact?.name}
+            </Text>
+            <Text style={[styles.modalPhone, { color: colors.textSecondary }]}>
+              {selectedContact?.phoneNumbers?.[0]?.number}
+            </Text>
+
+            <View style={styles.actionContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={handleCall}
+              >
+                <Ionicons name="call" size={24} color={colors.white} />
+                <Text style={[styles.actionText, { color: colors.white }]}>
+                  Call
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.error }]}
+                onPress={() => {
+                  setIsModalVisible(false);
+                  if (selectedContact) handleBlock(selectedContact);
+                }}
+              >
+                <Ionicons name="ban" size={24} color={colors.white} />
+                <Text style={[styles.actionText, { color: colors.white }]}>
+                  Block
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.error }]}
+                onPress={handleDelete}
+              >
+                <Ionicons name="trash" size={24} color={colors.white} />
+                <Text style={[styles.actionText, { color: colors.white }]}>
+                  Delete
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -265,7 +384,55 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  blockButton: {
-    padding: 10,
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: Platform.OS === "ios" ? 40 : 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  modalPhone: {
+    fontSize: 16,
+    marginBottom: 24,
+  },
+  actionContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    paddingHorizontal: 10,
+    gap: 10,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 8,
+    minWidth: 100,
+    justifyContent: "center",
+  },
+  actionText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: "500",
   },
 });

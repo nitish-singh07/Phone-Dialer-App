@@ -3,8 +3,9 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
+  Alert,
   Platform,
+  Dimensions,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { addDialedNumber, clearNumber } from "../../store/dialerSlice";
@@ -278,5 +279,4 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
   },
 });
-
 export default DialPad;

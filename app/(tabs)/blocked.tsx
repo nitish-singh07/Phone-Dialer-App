@@ -27,9 +27,9 @@ import {
 } from "../../utils/blockingUtils";
 
 interface BlockedContact {
+  phoneNumber: string;
   id: string;
   name: string;
-  number: string;
   dateBlocked: string;
   contactInfo?: Contact;
 }
@@ -39,6 +39,9 @@ export default function BlockedScreen() {
   const colors = getColors(isDarkMode);
   const [loading, setLoading] = useState(true);
   const [blockedContacts, setBlockedContacts] = useState<BlockedContact[]>([]);
+  const [expandedContactId, setExpandedContactId] = useState<string | null>(
+    null
+  );
 
   const loadBlockedContacts = async () => {
     try {
@@ -94,6 +97,17 @@ export default function BlockedScreen() {
     );
   };
 
+  const handleScroll = () => {
+    // Hide expanded contact on any scroll
+    if (expandedContactId) {
+      setExpandedContactId(null);
+    }
+  };
+
+  const toggleExpand = (contactId: string) => {
+    setExpandedContactId(expandedContactId === contactId ? null : contactId);
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -115,37 +129,56 @@ export default function BlockedScreen() {
         <FlatList
           data={blockedContacts}
           keyExtractor={(item) => item.id}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           renderItem={({ item }) => (
-            <View
-              style={[styles.blockedItem, { backgroundColor: colors.surface }]}
-            >
-              <View style={styles.contactInfo}>
-                <Text
-                  style={[styles.contactName, { color: colors.textPrimary }]}
-                >
-                  {item.name || "Unknown"}
-                </Text>
-                <Text
-                  style={[styles.phoneNumber, { color: colors.textSecondary }]}
-                >
-                  {item.phoneNumber}
-                </Text>
-                <Text
-                  style={[styles.dateBlocked, { color: colors.textSecondary }]}
-                >
-                  Blocked on {new Date(item.dateBlocked).toLocaleDateString()}
-                </Text>
-              </View>
-              <TouchableOpacity
+            <TouchableOpacity onPress={() => toggleExpand(item.id)}>
+              <View
                 style={[
-                  styles.unblockButton,
-                  { backgroundColor: colors.error },
+                  styles.blockedItem,
+                  { backgroundColor: colors.surface },
                 ]}
-                onPress={() => handleUnblock(item)}
               >
-                <Ionicons name="ban-outline" size={24} color={colors.white} />
-              </TouchableOpacity>
-            </View>
+                <View style={styles.contactInfo}>
+                  <Text
+                    style={[styles.contactName, { color: colors.textPrimary }]}
+                  >
+                    {item.name || "Unknown"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.phoneNumber,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {item.phoneNumber}
+                  </Text>
+                  {expandedContactId === item.id && (
+                    <View style={styles.expandedInfo}>
+                      <Text
+                        style={[
+                          styles.dateBlocked,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
+                        Blocked on{" "}
+                        {new Date(item.dateBlocked).toLocaleDateString()}
+                      </Text>
+                      {/* Add any additional expanded contact information here */}
+                    </View>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.unblockButton,
+                    { backgroundColor: colors.error },
+                  ]}
+                  onPress={() => handleUnblock(item)}
+                >
+                  <Ionicons name="ban-outline" size={24} color={colors.white} />
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
           )}
           ItemSeparatorComponent={() => (
             <View
@@ -198,5 +231,8 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: StyleSheet.hairlineWidth,
+  },
+  expandedInfo: {
+    marginTop: 8,
   },
 });
