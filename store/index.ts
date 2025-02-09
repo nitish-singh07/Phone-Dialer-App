@@ -1,20 +1,22 @@
 import { configureStore } from "@reduxjs/toolkit";
-import dialerReducer from "./dialerSlice";
-import contactsReducer from "./contactsSlice";
-import historyReducer from "./historySlice";
-import themeReducer from "./themeSlice";
-import blockedNumbersReducer from "./blockedNumbersSlice";
-import blockingReducer from "./blockingSlice";
+import dialerReducer from "./slices/dialerSlice";
+import historyReducer from "./slices/historySlice";
+import blockingReducer from "./slices/blockingSlice";
+import themeReducer from "./slices/themeSlice";
+import contactsReducer from "./slices/contactsSlice";
 
 export const store = configureStore({
   reducer: {
     dialer: dialerReducer,
-    contacts: contactsReducer,
     history: historyReducer,
-    theme: themeReducer,
-    blockedNumbers: blockedNumbersReducer,
     blocking: blockingReducer,
+    theme: themeReducer,
+    contacts: contactsReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

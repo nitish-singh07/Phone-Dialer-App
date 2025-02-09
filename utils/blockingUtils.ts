@@ -1,6 +1,8 @@
 import * as Contacts from "expo-contacts";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BlockedContact } from "../types";
+import { getContactByNumber } from "./contactsUtils";
 
 export interface BlockedContact {
   id: string;
@@ -13,125 +15,47 @@ const BLOCKED_CONTACTS_KEY = "blockedContacts";
 
 export const getDeviceBlockedContacts = async (): Promise<BlockedContact[]> => {
   try {
-    // Get contacts permission
-    const { status } = await Contacts.requestPermissionsAsync();
-    if (status !== "granted") {
-      console.log("Contacts permission not granted");
-      return [];
-    }
-
-    // Get all contacts
-    const { data } = await Contacts.getContactsAsync({
-      fields: [
-        Contacts.Fields.ID,
-        Contacts.Fields.Name,
-        Contacts.Fields.PhoneNumbers,
-      ],
-    });
-
-    // Get stored blocked numbers
-    const storedBlocked = await AsyncStorage.getItem(BLOCKED_CONTACTS_KEY);
-    const blockedNumbers: BlockedContact[] = storedBlocked
-      ? JSON.parse(storedBlocked)
-      : [];
-
-    // Enrich blocked numbers with contact info
-    const enrichedBlockedContacts = blockedNumbers.map((blocked) => {
-      const contact = data.find((c) =>
-        c.phoneNumbers?.some(
-          (phone) =>
-            formatPhoneNumber(phone.number) ===
-            formatPhoneNumber(blocked.phoneNumber)
-        )
-      );
-
-      return {
-        ...blocked,
-        name: contact?.name || blocked.name,
-      };
-    });
-
-    return enrichedBlockedContacts;
+    const blockedData = await AsyncStorage.getItem("blockedNumbers");
+    return blockedData ? JSON.parse(blockedData) : [];
   } catch (error) {
-    console.error("Error getting blocked contacts:", error);
+    console.error("Error fetching blocked contacts:", error);
     return [];
   }
 };
 
 export const blockContact = async (
-  phoneNumber: string,
-  name?: string
-): Promise<boolean> => {
-  try {
-    const blockedContacts = await getDeviceBlockedContacts();
+  phoneNumber: string
+): Promise<BlockedContact> => {
+  const contact = await getContactByNumber(phoneNumber);
+  const blockedContact: BlockedContact = {
+    id: Date.now().toString(),
+    phoneNumber,
+    name: contact?.name,
+    dateBlocked: new Date().toISOString(),
+  };
 
-    // Check if already blocked
-    if (
-      blockedContacts.some(
-        (contact) =>
-          formatPhoneNumber(contact.phoneNumber) ===
-          formatPhoneNumber(phoneNumber)
-      )
-    ) {
-      return false;
-    }
+  const blockedContacts = await getDeviceBlockedContacts();
+  await AsyncStorage.setItem(
+    "blockedNumbers",
+    JSON.stringify([...blockedContacts, blockedContact])
+  );
 
-    // Add to blocked contacts
-    const newBlockedContact: BlockedContact = {
-      id: Date.now().toString(),
-      phoneNumber,
-      name,
-      dateBlocked: new Date().toISOString(),
-    };
-
-    const updatedBlockedContacts = [...blockedContacts, newBlockedContact];
-    await AsyncStorage.setItem(
-      BLOCKED_CONTACTS_KEY,
-      JSON.stringify(updatedBlockedContacts)
-    );
-
-    return true;
-  } catch (error) {
-    console.error("Error blocking contact:", error);
-    return false;
-  }
+  return blockedContact;
 };
 
-export const unblockContact = async (phoneNumber: string): Promise<boolean> => {
-  try {
-    const blockedContacts = await getDeviceBlockedContacts();
-    const updatedBlockedContacts = blockedContacts.filter(
-      (contact) =>
-        formatPhoneNumber(contact.phoneNumber) !==
-        formatPhoneNumber(phoneNumber)
-    );
-
-    await AsyncStorage.setItem(
-      BLOCKED_CONTACTS_KEY,
-      JSON.stringify(updatedBlockedContacts)
-    );
-
-    return true;
-  } catch (error) {
-    console.error("Error unblocking contact:", error);
-    return false;
-  }
+export const unblockContact = async (phoneNumber: string): Promise<void> => {
+  const blockedContacts = await getDeviceBlockedContacts();
+  const updatedContacts = blockedContacts.filter(
+    (contact) => contact.phoneNumber !== phoneNumber
+  );
+  await AsyncStorage.setItem("blockedNumbers", JSON.stringify(updatedContacts));
 };
 
 export const isNumberBlocked = async (
   phoneNumber: string
 ): Promise<boolean> => {
-  try {
-    const blockedContacts = await getDeviceBlockedContacts();
-    return blockedContacts.some(
-      (contact) =>
-        formatPhoneNumber(contact.phoneNumber) ===
-        formatPhoneNumber(phoneNumber)
-    );
-  } catch (error) {
-    console.error("Error checking if number is blocked:", error);
-    return false;
-  }
+  const blockedContacts = await getDeviceBlockedContacts();
+  return blockedContacts.some((contact) => contact.phoneNumber === phoneNumber);
 };
 
 export const formatPhoneNumber = (phoneNumber?: string): string => {

@@ -1,7 +1,17 @@
-import { Text } from "react-native";
+import React from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../hooks/useTheme";
 
-const Icon = ({ name, size = 24 }) => {
-  return <Text style={{ fontSize: size }}>{name}</Text>;
+interface IconProps {
+  name: keyof typeof Ionicons.glyphMap;
+  size?: number;
+  color?: string;
+}
+
+export const Icon: React.FC<IconProps> = ({ name, size = 24, color }) => {
+  const { colors } = useTheme();
+
+  return (
+    <Ionicons name={name} size={size} color={color || colors.textPrimary} />
+  );
 };
-
-export default Icon;

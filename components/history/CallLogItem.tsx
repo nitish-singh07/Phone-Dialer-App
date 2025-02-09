@@ -1,9 +1,8 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../hooks/useTheme";
-import { formatCallDuration } from "../utils/historyUtils";
-import { CallLogEntry } from "../store/types";
+import { useTheme } from "../../hooks/useTheme";
+import { CallLogEntry, formatCallDuration } from "../../utils/historyUtils";
 
 interface CallLogItemProps {
   call: CallLogEntry;
@@ -16,8 +15,8 @@ export const CallLogItem: React.FC<CallLogItemProps> = ({
 }) => {
   const { colors } = useTheme();
 
-  const renderCallIcon = () => {
-    switch (call.type) {
+  const renderCallIcon = (type: string) => {
+    switch (type) {
       case "missed":
         return (
           <View style={styles.iconContainer}>
@@ -63,7 +62,7 @@ export const CallLogItem: React.FC<CallLogItemProps> = ({
 
   return (
     <View style={[styles.callItem, { backgroundColor: colors.surface }]}>
-      <View style={styles.callIcon}>{renderCallIcon()}</View>
+      <View style={styles.callIcon}>{renderCallIcon(call.type)}</View>
       <View style={styles.callInfo}>
         <Text style={[styles.callName, { color: colors.textPrimary }]}>
           {call.name || call.phoneNumber}

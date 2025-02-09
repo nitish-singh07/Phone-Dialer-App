@@ -1,27 +1,51 @@
 import { useEffect, useState } from "react";
-import * as Permissions from "expo-permissions";
+import * as Contacts from "expo-contacts";
+import * as CallLog from "expo-call-log";
+import { Platform } from "react-native";
+
+interface PermissionsState {
+  contacts: boolean;
+  callLog: boolean;
+  loading: boolean;
+  error: string | null;
+}
 
 export const usePermissions = () => {
-  const [callPermission, setCallPermission] = useState<boolean | null>(null);
-  const [contactsPermission, setContactsPermission] = useState<boolean | null>(
-    null
-  );
+  const [permissions, setPermissions] = useState<PermissionsState>({
+    contacts: false,
+    callLog: false,
+    loading: true,
+    error: null,
+  });
 
   useEffect(() => {
     const requestPermissions = async () => {
-      const { status: callStatus } = await Permissions.askAsync(
-        Permissions.CALL_PHONE
-      );
-      setCallPermission(callStatus === "granted");
+      try {
+        const [contactsPermission] = await Promise.all([
+          Contacts.requestPermissionsAsync(),
+          Platform.OS === "android" ? CallLog.requestPermissionsAsync() : null,
+        ]);
 
-      const { status: contactsStatus } = await Permissions.askAsync(
-        Permissions.CONTACTS
-      );
-      setContactsPermission(contactsStatus === "granted");
+        setPermissions({
+          contacts: contactsPermission.status === "granted",
+          callLog:
+            Platform.OS === "android"
+              ? contactsPermission.status === "granted"
+              : false,
+          loading: false,
+          error: null,
+        });
+      } catch (error) {
+        setPermissions((prev) => ({
+          ...prev,
+          loading: false,
+          error: "Failed to request permissions",
+        }));
+      }
     };
 
     requestPermissions();
   }, []);
 
-  return { callPermission, contactsPermission };
+  return permissions;
 };

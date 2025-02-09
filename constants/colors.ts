@@ -1,8 +1,5 @@
-// Remove this file as we already have colors.ts
-// This prevents confusion and maintains a single source of truth for colors
-
 export const lightColors = {
-  primary: "#4CAF50", // Green
+  primary: "#4CAF50",
   secondary: "#8BC34A",
   background: "#F5F5F5",
   surface: "#FFFFFF",
@@ -10,7 +7,7 @@ export const lightColors = {
   textPrimary: "#212121",
   textSecondary: "#757575",
   border: "#BDBDBD",
-  error: "#D32F2F", // Red
+  error: "#D32F2F",
   success: "#388E3C",
   warning: "#F57C00",
   info: "#1976D2",
@@ -21,18 +18,18 @@ export const lightColors = {
 };
 
 export const darkColors = {
-  primary: "#69F0AE",
-  secondary: "#B9F6CA",
+  primary: "#66BB6A",
+  secondary: "#9CCC65",
   background: "#121212",
   surface: "#1E1E1E",
-  surfaceVariant: "#2D2D2D",
+  surfaceVariant: "#2C2C2C",
   textPrimary: "#FFFFFF",
   textSecondary: "#B0B0B0",
   border: "#404040",
-  error: "#FF5252",
-  success: "#69F0AE",
-  warning: "#FFB74D",
-  info: "#64B5F6",
+  error: "#EF5350",
+  success: "#4CAF50",
+  warning: "#FFA726",
+  info: "#42A5F5",
   white: "#FFFFFF",
   black: "#000000",
   transparent: "transparent",
@@ -43,9 +40,3 @@ export type ColorScheme = typeof lightColors;
 
 export const getColors = (isDarkMode: boolean): ColorScheme =>
   isDarkMode ? darkColors : lightColors;
-
-export default {
-  light: lightColors,
-  dark: darkColors,
-  getColors,
-};

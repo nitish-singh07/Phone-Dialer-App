@@ -2,9 +2,9 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
 import { RootState } from "../../store";
-import { getColors } from "../../constants/Colors";
+import { getColors } from "../../constants/colors";
 import { View } from "react-native";
-import ThemeToggle from "../../components/ThemeToggle";
+import { ThemeToggle } from "../../components/common/ThemeToggle";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -17,31 +17,16 @@ export default function TabLayout() {
       <StatusBar style={isDarkMode ? "light" : "dark"} />
       <Tabs
         screenOptions={{
+          tabBarStyle: {
+            backgroundColor: colors.surface,
+          },
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textSecondary,
-          tabBarStyle: {
-            backgroundColor: colors.background,
-            borderTopColor: colors.border,
-          },
           headerStyle: {
-            backgroundColor: colors.background,
+            backgroundColor: colors.surface,
           },
           headerTintColor: colors.textPrimary,
-          headerTitleStyle: {
-            color: colors.textPrimary,
-          },
           headerRight: () => <ThemeToggle />,
-          tabBarLabelStyle: {
-            color: colors.textPrimary,
-          },
-          tabBarBackground: () => (
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: colors.background,
-              }}
-            />
-          ),
         }}
       >
         <Tabs.Screen

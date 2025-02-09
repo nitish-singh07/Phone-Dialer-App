@@ -1,5 +1,7 @@
 import * as Contacts from "expo-contacts";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getContactByNumber } from "./contactsUtils";
 
 export interface CallLogEntry {
   id: string;
@@ -12,14 +14,12 @@ export interface CallLogEntry {
 
 export const getDeviceCallLogs = async (): Promise<CallLogEntry[]> => {
   try {
-    // Request contacts permission which includes recent calls
     const { status } = await Contacts.requestPermissionsAsync();
     if (status !== "granted") {
       console.log("Contacts permission not granted");
       return [];
     }
 
-    // Get contacts with phone numbers
     const { data } = await Contacts.getContactsAsync({
       fields: [
         Contacts.Fields.PhoneNumbers,
@@ -28,7 +28,6 @@ export const getDeviceCallLogs = async (): Promise<CallLogEntry[]> => {
       ],
     });
 
-    // Filter contacts with phone numbers and create call log entries
     const callLogs: CallLogEntry[] = data
       .filter(
         (contact) => contact.phoneNumbers && contact.phoneNumbers.length > 0
@@ -38,18 +37,41 @@ export const getDeviceCallLogs = async (): Promise<CallLogEntry[]> => {
           id: `${contact.id}-${index}`,
           phoneNumber: phone.number || "Unknown",
           name: contact.name,
-          timestamp: Date.now() - index * 86400000, // Simulate different dates
-          duration: Math.floor(Math.random() * 300), // Simulate random duration
-          type: simulateCallType(), // Simulate call types
+          timestamp: Date.now() - index * 86400000,
+          duration: Math.floor(Math.random() * 300),
+          type: simulateCallType(),
         }))
       );
 
-    // Sort by timestamp (most recent first)
     return callLogs.sort((a, b) => b.timestamp - a.timestamp);
   } catch (error) {
     console.error("Error fetching contacts:", error);
     return [];
   }
+};
+
+export const addCallToHistory = async (
+  phoneNumber: string,
+  type: "incoming" | "outgoing" | "missed",
+  duration: number = 0
+): Promise<CallLogEntry> => {
+  const contact = await getContactByNumber(phoneNumber);
+  const newCall: CallLogEntry = {
+    id: Date.now().toString(),
+    phoneNumber,
+    name: contact?.name,
+    type,
+    timestamp: Date.now(),
+    duration,
+  };
+
+  const callLogs = await getDeviceCallLogs();
+  await AsyncStorage.setItem(
+    "callLogs",
+    JSON.stringify([newCall, ...callLogs])
+  );
+
+  return newCall;
 };
 
 // Helper function to simulate call types

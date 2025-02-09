@@ -3,41 +3,27 @@ import { Provider } from "react-redux";
 import { store } from "../store";
 import { useEffect } from "react";
 import { useColorScheme } from "react-native";
-import { toggleTheme } from "../store/themeSlice";
-import { getColors } from "../constants/Colors";
+import { setTheme } from "../store/slices/themeSlice";
+import { ErrorBoundary } from "../components/common/ErrorBoundary";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    if (colorScheme === "dark") {
-      store.dispatch(toggleTheme());
-    }
+    store.dispatch(setTheme(colorScheme === "dark"));
   }, [colorScheme]);
 
-  const isDarkMode = store.getState().theme.isDarkMode;
-  const colors = getColors(isDarkMode);
-
   return (
-    <Provider store={store}>
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: colors.surface,
-          },
-          headerTintColor: colors.textPrimary,
-          contentStyle: {
-            backgroundColor: colors.background,
-          },
-        }}
-      >
-        <Stack.Screen
-          name="(tabs)"
-          options={{
+    <ErrorBoundary>
+      <Provider store={store}>
+        <Stack
+          screenOptions={{
             headerShown: false,
           }}
-        />
-      </Stack>
-    </Provider>
+        >
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </Provider>
+    </ErrorBoundary>
   );
 }
