@@ -14,34 +14,23 @@ import { useFocusEffect } from "@react-navigation/native";
 import { RootState } from "../../store";
 import { getColors } from "../../constants/Colors";
 import {
-  CallLog,
-  getCallHistory,
-  deleteCallLog,
-  clearCallHistory,
+  CallLogEntry,
+  getDeviceCallLogs,
+  formatCallDuration,
 } from "../../utils/historyUtils";
-import { isNumberBlocked } from "../../utils/blockingUtils";
 import * as Linking from "expo-linking";
 
 export default function HistoryScreen() {
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
   const colors = getColors(isDarkMode);
   const [loading, setLoading] = useState(true);
-  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
+  const [callLogs, setCallLogs] = useState<CallLogEntry[]>([]);
 
   const loadCallHistory = async () => {
     try {
       setLoading(true);
-      const history = await getCallHistory();
-
-      // Check if numbers are blocked
-      const enrichedHistory = await Promise.all(
-        history.map(async (log) => ({
-          ...log,
-          isBlocked: await isNumberBlocked(log.number),
-        }))
-      );
-
-      setCallLogs(enrichedHistory);
+      const logs = await getDeviceCallLogs();
+      setCallLogs(logs);
     } catch (error) {
       console.error("Error loading call history:", error);
       Alert.alert("Error", "Failed to load call history");
@@ -66,69 +55,49 @@ export default function HistoryScreen() {
     Linking.openURL(`tel:${number}`);
   };
 
-  const handleDeleteLog = async (id: string) => {
-    Alert.alert(
-      "Delete Call Log",
-      "Are you sure you want to delete this call log?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            const success = await deleteCallLog(id);
-            if (success) {
-              loadCallHistory();
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleClearHistory = () => {
-    Alert.alert(
-      "Clear History",
-      "Are you sure you want to clear all call history?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: async () => {
-            const success = await clearCallHistory();
-            if (success) {
-              loadCallHistory();
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const renderCallIcon = (type: string, isBlocked: boolean) => {
-    let iconName = "call-outline";
-    let iconColor = colors.success;
-
-    if (isBlocked) {
-      iconColor = colors.error;
-    } else if (type === "missed") {
-      iconColor = colors.error;
-    } else if (type === "incoming") {
-      iconName = "call-received";
-      iconColor = colors.success;
-    } else if (type === "outgoing") {
-      iconName = "call-made";
-      iconColor = colors.primary;
+  const renderCallIcon = (type: string) => {
+    switch (type) {
+      case "missed":
+        return (
+          <View style={styles.iconContainer}>
+            <Ionicons name="call" size={24} color={colors.error} />
+            <Ionicons
+              name="arrow-down"
+              size={16}
+              color={colors.error}
+              style={styles.overlayIcon}
+            />
+          </View>
+        );
+      case "incoming":
+        return (
+          <View style={styles.iconContainer}>
+            <Ionicons name="call" size={24} color={colors.success} />
+            <Ionicons
+              name="arrow-down"
+              size={16}
+              color={colors.success}
+              style={styles.overlayIcon}
+            />
+          </View>
+        );
+      case "outgoing":
+        return (
+          <View style={styles.iconContainer}>
+            <Ionicons name="call" size={24} color={colors.primary} />
+            <Ionicons
+              name="arrow-up"
+              size={16}
+              color={colors.primary}
+              style={styles.overlayIcon}
+            />
+          </View>
+        );
+      default:
+        return (
+          <Ionicons name="call-outline" size={24} color={colors.textPrimary} />
+        );
     }
-
-    return <Ionicons name={iconName} size={24} color={iconColor} />;
   };
 
   if (loading) {
@@ -149,69 +118,50 @@ export default function HistoryScreen() {
           </Text>
         </View>
       ) : (
-        <>
-          <TouchableOpacity
-            style={[styles.clearButton, { backgroundColor: colors.error }]}
-            onPress={handleClearHistory}
-          >
-            <Text style={[styles.clearButtonText, { color: colors.white }]}>
-              Clear History
-            </Text>
-          </TouchableOpacity>
-
-          <FlatList
-            data={callLogs}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
+        <FlatList
+          data={callLogs}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View
+              style={[styles.callItem, { backgroundColor: colors.surface }]}
+            >
+              <View style={styles.callIcon}>{renderCallIcon(item.type)}</View>
+              <View style={styles.callInfo}>
+                <Text style={[styles.callName, { color: colors.textPrimary }]}>
+                  {item.name || item.phoneNumber}
+                </Text>
+                {item.name && (
+                  <Text
+                    style={[styles.callNumber, { color: colors.textSecondary }]}
+                  >
+                    {item.phoneNumber}
+                  </Text>
+                )}
+                <Text
+                  style={[styles.callTime, { color: colors.textSecondary }]}
+                >
+                  {new Date(item.timestamp).toLocaleString()}
+                </Text>
+                <Text
+                  style={[styles.callDuration, { color: colors.textSecondary }]}
+                >
+                  Duration: {formatCallDuration(item.duration)}
+                </Text>
+              </View>
               <TouchableOpacity
-                style={[styles.callItem, { backgroundColor: colors.surface }]}
-                onLongPress={() => handleDeleteLog(item.id)}
-                onPress={() => handleCall(item.number)}
+                style={[styles.dialButton, { backgroundColor: colors.primary }]}
+                onPress={() => handleCall(item.phoneNumber)}
               >
-                <View style={styles.callIcon}>
-                  {renderCallIcon(item.type, item.isBlocked)}
-                </View>
-                <View style={styles.callInfo}>
-                  <Text
-                    style={[styles.callName, { color: colors.textPrimary }]}
-                  >
-                    {item.contactName || item.number}
-                  </Text>
-                  {item.contactName && (
-                    <Text
-                      style={[
-                        styles.callNumber,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      {item.number}
-                    </Text>
-                  )}
-                  <Text
-                    style={[styles.callTime, { color: colors.textSecondary }]}
-                  >
-                    {new Date(item.time).toLocaleString()}
-                  </Text>
-                  {item.duration && (
-                    <Text
-                      style={[
-                        styles.callDuration,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      Duration: {item.duration}
-                    </Text>
-                  )}
-                </View>
+                <Ionicons name="call" size={20} color={colors.white} />
               </TouchableOpacity>
-            )}
-            ItemSeparatorComponent={() => (
-              <View
-                style={[styles.separator, { backgroundColor: colors.border }]}
-              />
-            )}
-          />
-        </>
+            </View>
+          )}
+          ItemSeparatorComponent={() => (
+            <View
+              style={[styles.separator, { backgroundColor: colors.border }]}
+            />
+          )}
+        />
       )}
     </View>
   );
@@ -230,24 +180,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
   },
-  clearButton: {
-    margin: 10,
-    padding: 10,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  clearButtonText: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
   callItem: {
     flexDirection: "row",
     padding: 15,
     alignItems: "center",
   },
+  iconContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  overlayIcon: {
+    position: "absolute",
+    right: -4,
+    bottom: -4,
+  },
   callIcon: {
     width: 40,
     alignItems: "center",
+    justifyContent: "center",
   },
   callInfo: {
     flex: 1,
@@ -268,6 +220,14 @@ const styles = StyleSheet.create({
   callDuration: {
     fontSize: 12,
     marginTop: 2,
+  },
+  dialButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 10,
   },
   separator: {
     height: StyleSheet.hairlineWidth,

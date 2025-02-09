@@ -20,10 +20,7 @@ import {
   getDeviceContacts,
   searchContacts,
 } from "../../utils/contactsUtils";
-import {
-  blockNumberOnDevice,
-  isNumberBlocked,
-} from "../../utils/blockingUtils";
+import { blockContact, isNumberBlocked } from "../../utils/blockingUtils";
 
 export default function ContactsScreen() {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -46,6 +43,7 @@ export default function ContactsScreen() {
       setContacts(deviceContacts);
       setFilteredContacts(deviceContacts);
     } catch (error) {
+      console.error("Error loading contacts:", error);
       Alert.alert("Error", "Failed to load contacts");
     } finally {
       setLoading(false);
@@ -54,70 +52,54 @@ export default function ContactsScreen() {
 
   const handleSearch = async (text: string) => {
     setSearchQuery(text);
-    if (text.trim()) {
+    if (text.trim() === "") {
+      setFilteredContacts(contacts);
+    } else {
       const results = await searchContacts(text);
       setFilteredContacts(results);
-    } else {
-      setFilteredContacts(contacts);
     }
   };
 
-  const handleContactPress = async (contact: Contact) => {
-    if (!contact.phoneNumbers?.[0]) return;
-
-    const number = contact.phoneNumbers[0].number;
-    const isBlocked = await isNumberBlocked(number);
+  const handleBlock = async (contact: Contact) => {
+    const phoneNumber = contact.phoneNumbers?.[0]?.number;
+    if (!phoneNumber) {
+      Alert.alert("Error", "No phone number available for this contact");
+      return;
+    }
 
     Alert.alert(
-      contact.name,
-      `${number}\n${
-        isBlocked ? "Unblock this contact?" : "What would you like to do?"
-      }`,
-      isBlocked
-        ? [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Unblock",
-              style: "destructive",
-              onPress: () => handleUnblock(number),
-            },
-          ]
-        : [
-            { text: "Cancel", style: "cancel" },
-            { text: "Call", onPress: () => handleCall(number) },
-            {
-              text: "Block",
-              style: "destructive",
-              onPress: () => handleBlock(number),
-            },
-          ]
+      "Block Contact",
+      `Are you sure you want to block ${contact.name}?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const isBlocked = await isNumberBlocked(phoneNumber);
+              if (isBlocked) {
+                Alert.alert("Info", "This contact is already blocked");
+                return;
+              }
+
+              const success = await blockContact(phoneNumber, contact.name);
+              if (success) {
+                Alert.alert("Success", `${contact.name} has been blocked`);
+              } else {
+                Alert.alert("Error", "Failed to block contact");
+              }
+            } catch (error) {
+              console.error("Error blocking contact:", error);
+              Alert.alert("Error", "Failed to block contact");
+            }
+          },
+        },
+      ]
     );
-  };
-
-  const handleCall = (number: string) => {
-    // Implementation from your dialpad component
-  };
-
-  const handleBlock = async (number: string) => {
-    try {
-      const success = await blockNumberOnDevice(number);
-      if (success) {
-        Alert.alert("Success", "Contact has been blocked");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to block contact");
-    }
-  };
-
-  const handleUnblock = async (number: string) => {
-    try {
-      const success = await unblockNumberFromDevice(number);
-      if (success) {
-        Alert.alert("Success", "Contact has been unblocked");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to unblock contact");
-    }
   };
 
   if (loading) {
@@ -151,7 +133,14 @@ export default function ContactsScreen() {
       >
         <Ionicons name="search" size={20} color={colors.textSecondary} />
         <TextInput
-          style={[styles.searchInput, { color: colors.textPrimary }]}
+          style={[
+            styles.searchInput,
+            {
+              backgroundColor: colors.surface,
+              color: colors.textPrimary,
+              borderColor: colors.border,
+            },
+          ]}
           placeholder="Search contacts..."
           placeholderTextColor={colors.textSecondary}
           value={searchQuery}
@@ -163,9 +152,8 @@ export default function ContactsScreen() {
         data={filteredContacts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TouchableOpacity
+          <View
             style={[styles.contactItem, { backgroundColor: colors.surface }]}
-            onPress={() => handleContactPress(item)}
           >
             <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
               <Text style={[styles.avatarText, { color: colors.white }]}>
@@ -176,7 +164,7 @@ export default function ContactsScreen() {
               <Text style={[styles.contactName, { color: colors.textPrimary }]}>
                 {item.name}
               </Text>
-              {item.phoneNumbers?.[0] && (
+              {item.phoneNumbers && item.phoneNumbers[0] && (
                 <Text
                   style={[styles.phoneNumber, { color: colors.textSecondary }]}
                 >
@@ -184,7 +172,13 @@ export default function ContactsScreen() {
                 </Text>
               )}
             </View>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.blockButton}
+              onPress={() => handleBlock(item)}
+            >
+              <Ionicons name="ban-outline" size={24} color={colors.error} />
+            </TouchableOpacity>
+          </View>
         )}
         ItemSeparatorComponent={() => (
           <View
@@ -270,5 +264,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  blockButton: {
+    padding: 10,
   },
 });

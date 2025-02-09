@@ -21,8 +21,8 @@ import {
 } from "../../store/blockingSlice";
 import { Contact, getContactByNumber } from "../../utils/contactsUtils";
 import {
-  getDeviceBlockedNumbers,
-  unblockNumberFromDevice,
+  getDeviceBlockedContacts,
+  unblockContact,
   formatPhoneNumber,
 } from "../../utils/blockingUtils";
 
@@ -35,7 +35,6 @@ interface BlockedContact {
 }
 
 export default function BlockedScreen() {
-  const dispatch = useDispatch();
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
   const colors = getColors(isDarkMode);
   const [loading, setLoading] = useState(true);
@@ -44,31 +43,8 @@ export default function BlockedScreen() {
   const loadBlockedContacts = async () => {
     try {
       setLoading(true);
-      const blockedNumbersInfo = await getDeviceBlockedNumbers();
-
-      const enrichedContacts = await Promise.all(
-        blockedNumbersInfo.map(async ({ number, dateBlocked }) => {
-          if (!number) {
-            console.warn("Found blocked entry without number");
-            return null;
-          }
-
-          const contactInfo = await getContactByNumber(number);
-          return {
-            id: number,
-            name: contactInfo?.name || "Unknown",
-            number: number,
-            dateBlocked,
-            contactInfo,
-          };
-        })
-      );
-
-      const validContacts = enrichedContacts.filter(
-        (contact): contact is BlockedContact => contact !== null
-      );
-
-      setBlockedContacts(validContacts);
+      const contacts = await getDeviceBlockedContacts();
+      setBlockedContacts(contacts);
     } catch (error) {
       console.error("Error loading blocked contacts:", error);
       Alert.alert("Error", "Failed to load blocked contacts");
@@ -77,24 +53,19 @@ export default function BlockedScreen() {
     }
   };
 
+  // Refresh when screen is focused
   useFocusEffect(
     React.useCallback(() => {
       loadBlockedContacts();
-
-      return () => {
-        // Any cleanup if needed
-      };
     }, [])
   );
 
-  useEffect(() => {
-    loadBlockedContacts();
-  }, []);
-
-  const handleUnblock = async (number: string) => {
+  const handleUnblock = async (contact: BlockedContact) => {
     Alert.alert(
-      "Unblock Number",
-      "Are you sure you want to unblock this number?",
+      "Unblock Contact",
+      `Are you sure you want to unblock ${
+        contact.name || contact.phoneNumber
+      }?`,
       [
         {
           text: "Cancel",
@@ -105,14 +76,17 @@ export default function BlockedScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              const success = await unblockNumberFromDevice(number);
+              const success = await unblockContact(contact.phoneNumber);
               if (success) {
-                dispatch(unblockNumber(number));
-                loadBlockedContacts();
-                Alert.alert("Success", "Number has been unblocked");
+                // Reload the list after successful unblock
+                await loadBlockedContacts();
+                Alert.alert("Success", "Contact has been unblocked");
+              } else {
+                Alert.alert("Error", "Failed to unblock contact");
               }
             } catch (error) {
-              Alert.alert("Error", "Failed to unblock number");
+              console.error("Error unblocking contact:", error);
+              Alert.alert("Error", "Failed to unblock contact");
             }
           },
         },
@@ -132,13 +106,9 @@ export default function BlockedScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {blockedContacts.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons
-            name="shield-checkmark"
-            size={50}
-            color={colors.textSecondary}
-          />
+          <Ionicons name="ban" size={50} color={colors.textSecondary} />
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            No blocked numbers
+            No blocked contacts
           </Text>
         </View>
       ) : (
@@ -149,23 +119,16 @@ export default function BlockedScreen() {
             <View
               style={[styles.blockedItem, { backgroundColor: colors.surface }]}
             >
-              <View
-                style={[styles.avatar, { backgroundColor: colors.primary }]}
-              >
-                <Text style={[styles.avatarText, { color: colors.white }]}>
-                  {item.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
               <View style={styles.contactInfo}>
                 <Text
                   style={[styles.contactName, { color: colors.textPrimary }]}
                 >
-                  {item.name}
+                  {item.name || "Unknown"}
                 </Text>
                 <Text
                   style={[styles.phoneNumber, { color: colors.textSecondary }]}
                 >
-                  {item.number}
+                  {item.phoneNumber}
                 </Text>
                 <Text
                   style={[styles.dateBlocked, { color: colors.textSecondary }]}
@@ -178,9 +141,9 @@ export default function BlockedScreen() {
                   styles.unblockButton,
                   { backgroundColor: colors.error },
                 ]}
-                onPress={() => handleUnblock(item.number)}
+                onPress={() => handleUnblock(item)}
               >
-                <Ionicons name="lock-open" size={20} color={colors.white} />
+                <Ionicons name="ban-outline" size={24} color={colors.white} />
               </TouchableOpacity>
             </View>
           )}
@@ -213,20 +176,8 @@ const styles = StyleSheet.create({
     padding: 15,
     alignItems: "center",
   },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: "600",
-  },
   contactInfo: {
     flex: 1,
-    marginLeft: 15,
   },
   contactName: {
     fontSize: 16,

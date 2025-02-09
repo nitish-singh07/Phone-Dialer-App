@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import {
   View,
   Text,
@@ -184,7 +183,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   displayContainer: {
-    paddingVertical: 20,
+    paddingVertical: 30,
     paddingHorizontal: 20,
     alignItems: "center",
     flexDirection: "row",
